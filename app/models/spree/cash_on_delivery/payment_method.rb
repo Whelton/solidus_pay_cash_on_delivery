@@ -1,35 +1,29 @@
 module Spree
-
   module CashOnDelivery
-
-
     class PaymentMethod < Spree::PaymentMethod
+
+      preference :charge, :float, default: 5.0
 
       def payment_profiles_supported?
         false # we want to show the confirm step.
       end
 
-
       def create_adjustment(payment)
+        # Create the adjusment
         adjustment = Spree::Adjustment.create(
-            amount: Spree::CashOnDelivery::Config.charge.to_f,
+            amount: preferences[:charge].to_f,
             order: payment.order,
             adjustable: payment.order,
             source: self,
-            :mandatory => true,
-            :included => true,
             label: "Cash On Delivery Fee"
         )
 
+        # Add it
         payment.order.adjustments << adjustment
 
-        payment.update_attribute(:amount, payment.amount + Spree::CashOnDelivery::Config.charge.to_f)
-        payment.order.updater.update_adjustment_total
-        payment.order.updater.update_order_total
-        payment.order.persist_totals
-        # end
+        # Finalize it (or the total updaters will ignore it)
+        adjustment.finalize!
       end
-
 
       def authorize(*args)
         ActiveMerchant::Billing::Response.new(true, "", {}, {})
@@ -75,6 +69,6 @@ module Spree
         true
       end
 
-    end
-  end
-end
+    end # PaymentMethod
+  end # CashOnDelivery
+end # Spree
